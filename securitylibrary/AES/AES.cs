@@ -68,7 +68,7 @@ namespace SecurityLibrary.AES
             {0x0d, 0x09, 0x0e, 0x0b},
             {0x0b, 0x0d, 0x09, 0x0e}};
 
-        int[,] key_extra = new int[44, 4];
+        int[,] key_extra = new int[4, 44];
 
 
         //round plaintext
@@ -85,18 +85,8 @@ namespace SecurityLibrary.AES
             return arr;
         }
 
-        void add_key_to_arr(string key)
-        {
-            int[,] key_arr = new int[4, 4];
-            //rounded key then add to big array
-            key_arr = round_key(key);
-            for (int i = 0; i < 4; i++)
-                for (int j = 0; j < 4; j++)
-                    key_extra[i, j] = key_arr[i, j];
-        }
-
         //round key
-        int[,] round_key(string key)
+        void round_key(string key)
         {
             int[,] arr = new int[4, 4];
             int cnt = 2;
@@ -105,8 +95,7 @@ namespace SecurityLibrary.AES
             //each index contain 2 index of plaintext
             for (int i = 0; i < 4; i++)
                 for (int j = 0; j < 4; j++)
-                    arr[i, j] = Convert.ToInt32(("0x" + key[cnt++] + key[cnt++]), 16);
-            return arr;
+                    key_extra[j, i] = Convert.ToInt32(("0x" + key[cnt++] + key[cnt++]), 16);
         }
         void key_round_to_start()
         {
@@ -115,15 +104,15 @@ namespace SecurityLibrary.AES
             int[] col_rson = new int[4];
             int[] res = new int[4];
             //last col i=4
-            for (int i = 4; i < 44; i++)
+            for (int i = 4; i < 44; i++) //col
             {
-                for (int j = 0; j < 4; j++)
+                for (int j = 0; j < 4; j++) //row
                 {
-                    //col3
-                    col_3[j] = key_extra[i - 1, j];
+                    //col3 
+                    col_3[j] = key_extra[j, i-1];
                     //first col of matrix given key
-                    f_col_key[j] = key_extra[i - 4, j];
-                    //git col of rson
+                    f_col_key[j] = key_extra[j, i-4];
+                    //git col of rson 4*10
                     if (Rcon_ind < 10)
                         col_rson[j] = Rcon[j, Rcon_ind];
                 }
@@ -134,15 +123,15 @@ namespace SecurityLibrary.AES
                 {
                     col_3 = Rotate_Col(col_3);
                     col_3 = Substitude_Col(col_3);
-                    res = xor(col_3, f_col_key, col_rson, true);
+                    res = xor(col_3, f_col_key, col_rson, true); //true i will xor 3col
                     Rcon_ind++;
                 }
-                else
-                    res = xor(col_3, f_col_key, col_rson, false);
-                //update key
+                else //false i will xor 2col
+                    res = xor(col_3, f_col_key, col_rson, false); //last i calc xor second col,third... xor rson
+                //add col to key
                 for (int j = 0; j < 4; j++)
                 {
-                    key_extra[i, j] = res[j];
+                    key_extra[j, i] = res[j];
                 }
             }
         }
@@ -209,8 +198,8 @@ namespace SecurityLibrary.AES
             {
                 for (int j = 0; j < 4; j++)
                 {
-                    //xor
-                    val = Convert.ToString(round_plain[j, i] ^ key_extra[i, j], 16);
+                    //xor rounded plain and rounded key
+                    val = Convert.ToString(round_plain[j, i] ^ key_extra[j, i], 16);
 
                     res[j, i] = Convert.ToInt32(val, 16);
                 }
@@ -221,7 +210,7 @@ namespace SecurityLibrary.AES
         int[,] rounds(int[,] arr, int num_of_round, int num_main_round)
         {
             arr = substitute_matrix_4_4(arr, 0);
-            arr = shift_left(arr, 0);
+            arr = shift_left(arr, 0); //0=>ecn
             if (num_main_round == 0)
                 arr = mixCols(arr);
             arr = RoundKey(arr, num_of_round);
@@ -264,12 +253,12 @@ namespace SecurityLibrary.AES
             {
                 for (int j = 0; j < 4; j++)
                 {
-                    row[j] = mat[i, j];
+                    row[j] = mat[i, j]; //get row by row
                 }
-                if (inverse == 0)
+                if (inverse == 0) //0=>ecnc
                     //shift row by ind if row
                     row = shift_Row(row, i);
-                else
+                else //1=>dec
                     row = shift_Row_Inverse(row, i);
                 //store each row shifted
                 for (int j = 0; j < 4; j++)
@@ -316,7 +305,7 @@ namespace SecurityLibrary.AES
                         {
                             array_Xor[k] = arrShifted[k, i];
                         }
-                        else if (galois_Field_mixMat[j, k] == 2)
+                        else if (galois_Field_mixMat[j, k] == 2)//Gf(2)
                         {
                             array_Xor[k] = multiply_Two(arrShifted[k, i]);
                         }
@@ -336,7 +325,7 @@ namespace SecurityLibrary.AES
         int multiply_Two(int x)
         {
             int ret;
-            UInt32 temp = Convert.ToUInt32(x << 1);
+            UInt32 temp = Convert.ToUInt32(x << 1); //shift left
             ret = (int)(temp & 0xFF);
             if (x > 127)
                 ret = Convert.ToInt32(ret ^ 27);
@@ -345,7 +334,7 @@ namespace SecurityLibrary.AES
         int[,] RoundKey(int[,] matrix, int Round_index)
         {
             int[,] key_round;
-            key_round = get_key(Round_index);
+            key_round = get_key(Round_index); //4*4 key i should work in this round
             string tmp;
             for (int i = 0; i < 4; i++)
             {
@@ -363,11 +352,11 @@ namespace SecurityLibrary.AES
         {
             int[,] arr = new int[4, 4];
             int r = 0;
-            for (int i = index_of_round * 4; i < index_of_round * 4 + 4; i++)
+            for (int i = index_of_round * 4; i < index_of_round * 4 + 4; i++) //ind of col in key
             {
                 for (int j = 0; j < 4; j++)
                 {
-                    arr[j, r] = key_extra[i, j];
+                    arr[j, r] = key_extra[j, i];
                 }
                 r++;
             }
@@ -381,7 +370,7 @@ namespace SecurityLibrary.AES
                 for (int j = 0; j < 4; j++)
                 {
                     var val = Convert.ToString(arr[j, i], 16);
-                    if (val.Length < 2)
+                    if (val.Length == 1)
                     {
                         str.Append("0" + val);
                     }
@@ -393,13 +382,13 @@ namespace SecurityLibrary.AES
 
         int[,] rounds_decryption(int[,] arr, int num_of_round, int num_dec_round)
         {
-            arr = RoundKey(arr, num_of_round);
+            arr = RoundKey(arr, num_of_round); //arr xor arr with key rounded
             //if 0 mix cols
             if (num_dec_round == 0)
             {
                 arr = mix_Cols_Inverse(arr);
             }
-            arr = shift_left(arr, 1);
+            arr = shift_left(arr, 1); //1=>dec
             arr = substitute_matrix_4_4(arr, 1);
             return arr;
         }
@@ -413,10 +402,13 @@ namespace SecurityLibrary.AES
                 {
                     for (int k = 0; k < 4; k++)
                     {
-                        int x0 = shifted_matrix[k, i];
+                        int x0 = shifted_matrix[k, i]; //arr[4,4] [02,03,01,01] * col
+                                                       //         [01,02,03,01]
+                                                       //         [01,01,02,03]
+                                                       //         [03,01,01,02]
                         int x1 = multiply_Two(x0);
                         int x2 = multiply_Two(x1);
-                        int x3 = multiply_Two(x2);
+                        int x3 = multiply_Two(x2); //return col multiply 
                         if (galois_Field_Inverse_mixmat[j, k] == 0x9)
                         {
                             array_of_Xor[k] = x3 ^ x0;
@@ -436,14 +428,14 @@ namespace SecurityLibrary.AES
                             array_of_Xor[k] = x3 ^ x2 ^ x1;
                         }
                     }
-                    //xor result
+                    //xor result 
                     int mult = array_of_Xor[0] ^ array_of_Xor[1] ^ array_of_Xor[2] ^ array_of_Xor[3];
                     mixedCols[j, i] = mult;
                 }
             }
             return mixedCols;
         }
-        int[] shift_Row_Inverse(int[] row, int n)
+        int[] shift_Row_Inverse(int[] row, int n) //rotate
         {
             UInt32 num = 0;
             for (int i = 0; i < 4; i++)
@@ -451,7 +443,7 @@ namespace SecurityLibrary.AES
 
                 num += Convert.ToUInt32(row[i]);
                 if (i != 3)
-                    num = num << 8;
+                    num = num << 8; //shift left
             }
             num = ((num >> (n * 8)) | (num) << (32 - (n * 8)));
 
@@ -474,16 +466,16 @@ namespace SecurityLibrary.AES
         public override string Decrypt(string cipherText, string key)
         {
 
-            int[,] rounded_cipher = round_plain(cipherText);
-            add_key_to_arr(key);
+            int[,] rounded_cipher = round_plain(cipherText); //array 4*4 of cipherText
+            round_key(key); //array 4*4 of key
             //schedule key
-            key_round_to_start();
+            key_round_to_start(); //10 round 44col
 
-            rounded_cipher = rounds_decryption(rounded_cipher, 10, 1);
+            rounded_cipher = rounds_decryption(rounded_cipher, 10, 1); //round(xor) shift rows / subs bytes
             int i = 10;
-            while (--i != 0)
+            while (--i != 0) //9
             {
-                rounded_cipher = rounds_decryption(rounded_cipher, i, 0);
+                rounded_cipher = rounds_decryption(rounded_cipher, i, 0); //mix
             }
 
             rounded_cipher = f_Round_Dec(rounded_cipher);
@@ -493,11 +485,11 @@ namespace SecurityLibrary.AES
 
         public override string Encrypt(string plainText, string key)
         {
-            int[,] rounded_plain = round_plain(plainText);
+            int[,] rounded_plain = round_plain(plainText); //array 4*4 of plaintext
 
-            add_key_to_arr(key);
+            round_key(key); //array 4*4 of key
             //schedule key
-            key_round_to_start();
+            key_round_to_start(); //10 round 44col
 
             rounded_plain = initial_round(rounded_plain);
 
