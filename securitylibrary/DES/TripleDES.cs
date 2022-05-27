@@ -16,9 +16,9 @@ namespace SecurityLibrary.DES
             // throw new NotImplementedException();
             string plain_text = string.Empty;
             DES d = new DES();
-            plain_text = d.Decrypt(cipherText, key[1]);
-            plain_text = d.Encrypt(plain_text, key[0]);
-            plain_text = d.Decrypt(plain_text, key[1]);
+            plain_text = d.Decrypt(cipherText, key[0]);
+            plain_text = d.Encrypt(plain_text, key[1]);
+            plain_text = d.Decrypt(plain_text, key[0]);
             return plain_text;
         }
 
