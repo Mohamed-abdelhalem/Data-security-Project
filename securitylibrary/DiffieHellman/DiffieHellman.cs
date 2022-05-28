@@ -11,7 +11,7 @@ namespace SecurityLibrary.DiffieHellman
         public List<int> GetKeys(int q, int alpha, int xa, int xb)
         {
             //throw new NotImplementedException();
-            var Ya = power(alpha, xa, q);
+            var Ya = power(alpha, xa, q); //alpha^Xa mod q
             var Yb = power(alpha, xb, q);
             var K1 = power(Yb, xa, q);
             var K2 = power(Ya, xb, q);

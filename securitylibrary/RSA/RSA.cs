@@ -10,7 +10,7 @@ namespace SecurityLibrary.RSA
     {
         public int Encrypt(int p, int q, int M, int e)
         {
-            
+            //m^e mod n
             var n = p * q;
             int c = 1;
             for (int i = 1; i <= e; i++)
@@ -21,11 +21,11 @@ namespace SecurityLibrary.RSA
 
         public int Decrypt(int p, int q, int C, int e)
         {
-            
+            //c^d mod n
             var n = p * q;
             var phiN = (p - 1) * (q - 1);
             AES.ExtendedEuclid ex = new AES.ExtendedEuclid();
-            var d = ex.GetMultiplicativeInverse(e, phiN);
+            var d = ex.GetMultiplicativeInverse(e, phiN); //d=e^-1 mod phin
             int m = 1;
             for (int i = 1; i <= d; i++)
                 m = (m * C) % n;

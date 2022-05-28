@@ -81,7 +81,7 @@ namespace SecurityLibrary.AES
             //each index contain 2 index of plaintext
             for (int i = 0; i < 4; i++)
                 for (int j = 0; j < 4; j++)
-                    arr[j, i] = Convert.ToInt32(("0x" + plain_text[cnt++] + plain_text[cnt++]), 16);
+                    arr[j, i] = Convert.ToInt32(("0x" + plain_text[cnt++] + plain_text[cnt++]), 16); //store in col by col
             return arr;
         }
 
@@ -301,7 +301,7 @@ namespace SecurityLibrary.AES
                 {
                     for (int k = 0; k < 4; k++)
                     {
-                        if (galois_Field_mixMat[j, k] == 1)
+                        if (galois_Field_mixMat[j, k] == 1) //row==1
                         {
                             array_Xor[k] = arrShifted[k, i];
                         }
@@ -309,12 +309,12 @@ namespace SecurityLibrary.AES
                         {
                             array_Xor[k] = multiply_Two(arrShifted[k, i]);
                         }
-                        else if (galois_Field_mixMat[j, k] == 3)
+                        else if (galois_Field_mixMat[j, k] == 3) //[]*02 + []*01 (xor)
                         {
                             array_Xor[k] = multiply_Two(arrShifted[k, i]) ^ arrShifted[k, i];
                         }
                     }
-                    //xor res
+                    //xor res (+) col*row
                     int res = array_Xor[0] ^ array_Xor[1] ^ array_Xor[2] ^ array_Xor[3];
                     mixedCols[j, i] = res;
                 }
@@ -325,10 +325,10 @@ namespace SecurityLibrary.AES
         int multiply_Two(int x)
         {
             int ret;
-            UInt32 temp = Convert.ToUInt32(x << 1); //shift left
+            UInt32 temp = Convert.ToUInt32(x << 1); //shift left binary
             ret = (int)(temp & 0xFF);
-            if (x > 127)
-                ret = Convert.ToInt32(ret ^ 27);
+            if (x > 127) //last digit 1
+                ret = Convert.ToInt32(ret ^ 27); //1B 00011011 = 27
             return ret;
         }
         int[,] RoundKey(int[,] matrix, int Round_index)
@@ -402,28 +402,28 @@ namespace SecurityLibrary.AES
                 {
                     for (int k = 0; k < 4; k++)
                     {
-                        int x0 = shifted_matrix[k, i]; //arr[4,4] [02,03,01,01] * col
-                                                       //         [01,02,03,01]
-                                                       //         [01,01,02,03]
-                                                       //         [03,01,01,02]
-                        int x1 = multiply_Two(x0);
-                        int x2 = multiply_Two(x1);
-                        int x3 = multiply_Two(x2); //return col multiply 
+                        int x0 = shifted_matrix[k, i]; //arr[4,4] [0E,0B,0D,09] * col
+                                                       //         [09,0E,0B,0D]
+                                                       //         [0D,09,0E,0B]
+                                                       //         [0B,0D,09,0E]
+                        int x1 = multiply_Two(x0); //2
+                        int x2 = multiply_Two(x1); //4
+                        int x3 = multiply_Two(x2); //return col multiply 8
                         if (galois_Field_Inverse_mixmat[j, k] == 0x9)
                         {
                             array_of_Xor[k] = x3 ^ x0;
                         }
-                        else if (galois_Field_Inverse_mixmat[j, k] == 0xB)
+                        else if (galois_Field_Inverse_mixmat[j, k] == 0xB) //11
                         {
                             array_of_Xor[k] = x3 ^ x0 ^ x1;
                         }
-                        else if (galois_Field_Inverse_mixmat[j, k] == 0xD)
+                        else if (galois_Field_Inverse_mixmat[j, k] == 0xD) //13
                         {
                             array_of_Xor[k] = x3 ^ x2 ^ x0;
 
                         }
 
-                        else if (galois_Field_Inverse_mixmat[j, k] == 0xE)
+                        else if (galois_Field_Inverse_mixmat[j, k] == 0xE) //14
                         {
                             array_of_Xor[k] = x3 ^ x2 ^ x1;
                         }
@@ -465,9 +465,10 @@ namespace SecurityLibrary.AES
 
         public override string Decrypt(string cipherText, string key)
         {
-
+            //state
             int[,] rounded_cipher = round_plain(cipherText); //array 4*4 of cipherText
             round_key(key); //array 4*4 of key
+
             //schedule key
             key_round_to_start(); //10 round 44col
 
@@ -478,16 +479,17 @@ namespace SecurityLibrary.AES
                 rounded_cipher = rounds_decryption(rounded_cipher, i, 0); //mix
             }
 
-            rounded_cipher = f_Round_Dec(rounded_cipher);
+            rounded_cipher = f_Round_Dec(rounded_cipher); //xor key with cipher
             string s = convirt_Matrix_to_String(rounded_cipher);
             return s;
         }
 
         public override string Encrypt(string plainText, string key)
         {
+            //state
             int[,] rounded_plain = round_plain(plainText); //array 4*4 of plaintext
-
             round_key(key); //array 4*4 of key
+
             //schedule key
             key_round_to_start(); //10 round 44col
 
@@ -496,7 +498,7 @@ namespace SecurityLibrary.AES
             for (int i = 0; i < 9; i++)
                 rounded_plain = rounds(rounded_plain, i + 1, 0);
 
-            rounded_plain = rounds(rounded_plain, 10, 1);
+            rounded_plain = rounds(rounded_plain, 10, 1); //without mix
 
             string s = convirt_Matrix_to_String(rounded_plain);
             return s;
